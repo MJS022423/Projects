@@ -1,0 +1,95 @@
+import numpy as np
+import tensorflow as tf
+import tkinter as tk
+import numpy as np
+from PIL import Image, ImageDraw, ImageOps
+from tensorflow.keras.models import load_model # type: ignore
+from tensorflow.keras.preprocessing.image import load_img, img_to_array # type: ignore
+
+
+model = load_model('pre_trained_model/Mnist_CNN_model.h5')
+
+canvas_width = 500
+canvas_height = 400
+
+class Live_handwritten_digit:
+  
+  def __init__(self, root):
+      
+      self.root = root
+      self.root.geometry("500x500")
+      self.root.title("Live Mnist")
+      self.root.resizable(False, False)
+      
+      self.canvas = tk.Canvas(root, width = canvas_width, height = canvas_height, bg = "white")
+      self.canvas.pack()
+      
+      self.image = Image.new('L',(canvas_width, canvas_height), "white")
+      self.draw = ImageDraw.Draw(self.image)
+      
+      self.result = tk.Label(root, text = "Prediction: None", font = ("Arial",16))
+      self.result.pack(pady = 10)
+      
+      self.inference_timer = None
+      
+      self.canvas.bind("<B1-Motion>", self.paint)
+      self.canvas.bind("<ButtonRelease-1>", self.inference_schedule)
+      
+      
+      self.clear_button = tk.Button(root, text = "Clear" , command = self.Clear, font = ("Arial"))
+      self.clear_button.pack(pady = 5)
+      
+  def paint(self, event):
+    
+    x, y = event.x , event.y
+    r = 10
+    
+    self.canvas.create_oval(x-r, y-r, x+r, y+r, fill = "black", outline = "black")
+    self.draw.ellipse([x-r, y-r, x+r, y+r], fill = "black")
+    
+    if self.inference_timer:
+      
+      self.root.after_cancel(self.inference_schedule)
+      
+  def inference_schedule(self, event = None):
+    
+    self.inference_time = self.root.after(1000, self.prediction)    
+      
+      
+  def Clear(self):
+    
+    self.canvas.delete("all")
+    self.draw.rectangle([0, 0, canvas_width, canvas_height], fill = "white")
+    self.result.config(text = "Prediction: None")
+    
+  def prediction(self):
+    
+    input_data = self.preprocessing_image(self.image)
+      
+    prediction = model.predict(input_data)
+    predicted_number = np.argmax(prediction)
+    accuracy = prediction[0][predicted_number] * 100
+    
+    self.result.config(text = f"prediction: {predicted_number} (Accuracy: {accuracy:.1f} %")
+
+  def preprocessing_image(self, data, target_size = (28,28)):
+  
+    Mnist_data = data.resize(target_size)
+    Mnist_data = ImageOps.invert(Mnist_data)
+    Mnist_data = np.array(Mnist_data) / 255.0
+    Mnist_data = np.expand_dims(Mnist_data, axis = 0)
+    Mnist_data = np.expand_dims(Mnist_data, axis = -1)
+    
+    return Mnist_data
+  
+if __name__ == "__main__":
+  
+  root = tk.Tk()
+  app = Live_handwritten_digit(root)
+  root.mainloop()
+
+
+
+
+
+
